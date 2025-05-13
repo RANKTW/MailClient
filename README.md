@@ -1,6 +1,8 @@
 # MailClient
 Open-source email client that manages all your email accounts in one place for Windows, Mac, and Linux. 
 
+[Click here to download](https://github.com/RANKTW/MailClient/releases)
+
 Supports: `Microsoft Graph API`, `Microsoft IMAP OAuth2`, and `IMAP Basic Authentication` for other common email providers.
 
 You can add your custom IMAP hostname in the `hosts.json` file.
