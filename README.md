@@ -11,8 +11,10 @@ You can add your custom IMAP hostname in the `hosts.json` file.
 hostname:port
 hostname:port:username:password
 username:password@hostname:port
-
 ```
+Need high-quality cheap proxies?
+[https://tokenu.to](https://tokenu.to/?utm_source=github&utm_medium=MailClient)
+
 ## `emails.txt`: Multiple Input Formats Supported
 #### JsonArray format
 ###### for Microsoft `Graph API` or `IMAP OAuth2`
