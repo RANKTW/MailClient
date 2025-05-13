@@ -5,6 +5,9 @@ Supports: `Microsoft Graph API`, `Microsoft IMAP OAuth2`, and `IMAP Basic Authen
 
 You can add your custom IMAP hostname in the `hosts.json` file.
 
+✅ Image Tracker Protection 
+![](https://i.imgur.com/d1BbEbZ.png)
+
 ---
 ## `proxies.txt`: Multiple Input Formats Supported
 ```
