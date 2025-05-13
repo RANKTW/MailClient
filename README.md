@@ -1,7 +1,7 @@
 # MailClient
 Open-source email client that manages all your email accounts in one place for Windows, Mac, and Linux. 
 
-Supports: `Microsoft Graph API`, `Microsoft IMAP OAuth`, and `IMAP Basic` for other common email providers.
+Supports: `Microsoft Graph API`, `Microsoft IMAP OAuth`, and `IMAP Basic Authentication` for other common email providers.
 
 You can add your custom IMAP hostname in the `hosts.json` file.
 
