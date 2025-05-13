@@ -1,5 +1,6 @@
 # MailClient
 Open-source email client that manages all your email accounts in one place for Windows, Mac, and Linux. 
+> 70% of the code is written by AI 🤖
 
 [Click here to download](https://github.com/RANKTW/MailClient/releases)
 
