@@ -25,20 +25,6 @@
       "host": "imap.gmx.com"
     },
     {
-      "pattern": [
-        "favordmail.com",
-        "veridicalmail.com",
-        "superocomail.com",
-        "velismail.com",
-        "reevalmail.com",
-        "estabamail.com",
-        "sabesmail.com",
-        "puedemail.com",
-        "quieresmail.com"
-      ],
-      "host": "imap.firstmail.ltd"
-    },
-    {
       "pattern": "gmail.com",
       "host": "imap.gmail.com"
     },
@@ -284,6 +270,12 @@
         "smarmail.com"
       ],
       "host": "pop.dragonsmail.com"
+    },
+    {
+      "pattern": [
+        "*mail.com"
+      ],
+      "host": "imap.firstmail.ltd"
     },
     {
       "pattern": "*",
