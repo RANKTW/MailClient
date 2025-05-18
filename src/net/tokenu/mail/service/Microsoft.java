@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class Microsoft {
+    public static boolean lazyLoad = true;
     public static String fileName = "emails.txt";
     public static Format formatType;
 
@@ -421,8 +422,7 @@ public class Microsoft {
                     try {
                         System.out.println("[" + message.getMessageNumber() + "] Loading subject: " + message.getSubject());
                         // Use lazy loading for IMAP messages
-                        EmailMessage emailMessage = EmailMessage.fromIMAP(message, true);
-                        return emailMessage;
+                        return EmailMessage.fromIMAP(message, lazyLoad);
                     }
                     catch (MessagingException e) {
                         throw new RuntimeException(e);
@@ -432,7 +432,7 @@ public class Microsoft {
                 for (int i = mailMessages.length - 1; i >= startIndex; i--) {
                     System.out.println("[" + i + "] Loading subject: " + mailMessages[i].getSubject());
                     // Use lazy loading for IMAP messages
-                    EmailMessage message = EmailMessage.fromIMAP(mailMessages[i], true);
+                    EmailMessage message = EmailMessage.fromIMAP(mailMessages[i], lazyLoad);
                     emailMessages.add(message);
                 }
             }
@@ -526,8 +526,7 @@ public class Microsoft {
                     try {
                         System.out.println("[" + message.getMessageNumber() + "] Loading subject: " + message.getSubject());
                         // Use lazy loading for IMAP messages
-                        EmailMessage emailMessage = EmailMessage.fromIMAP(message, true);
-                        return emailMessage;
+                        return EmailMessage.fromIMAP(message, lazyLoad);
                     }
                     catch (MessagingException e) {
                         throw new RuntimeException(e);
@@ -537,7 +536,7 @@ public class Microsoft {
                 for (int i = mailMessages.length - 1; i >= startIndex; i--) {
                     System.out.println("[" + i + "] Loading subject: " + mailMessages[i].getSubject());
                     // Use lazy loading for IMAP messages
-                    EmailMessage message = EmailMessage.fromIMAP(mailMessages[i], true);
+                    EmailMessage message = EmailMessage.fromIMAP(mailMessages[i], lazyLoad);
                     emailMessages.add(message);
                 }
             }

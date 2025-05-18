@@ -12,6 +12,8 @@ import javax.mail.internet.MimeBodyPart;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static net.tokenu.mail.service.Microsoft.lazyLoad;
+
 /**
  * Represents an email message with basic information.
  */
@@ -175,7 +177,7 @@ public class EmailMessage {
 
     // For backward compatibility
     public static EmailMessage fromIMAP(Message message) {
-        return fromIMAP(message, false);
+        return fromIMAP(message, lazyLoad);
     }
     private static String getHtml(Object content){
         try {
