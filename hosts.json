@@ -2,7 +2,7 @@
   "domains": [
     {
       "pattern": [
-        "bizml.ru",
+        "*bizml.ru",
         "mail.ru",
         "list.ru",
         "inbox.ru",
