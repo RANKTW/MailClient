@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 public class Microsoft {
     public static boolean lazyLoad = true;
     public static String fileName = "emails.txt";
+    public static String hosts = "hosts.json";
     public static Format formatType;
 
     // Store the current open folder and store for IMAP
@@ -563,7 +564,7 @@ public class Microsoft {
 
         try {
             // Read hosts.json file
-            String content = FileUtil.readString("hosts.json");
+            String content = FileUtil.readString(hosts);
 
             // Parse JSON
             JsonObject jsonObject = JsonParser.parseString(content).getAsJsonObject();
