@@ -48,6 +48,17 @@ public class EmailAccount {
         return account;
     }
 
+    public static EmailAccount fromText(String email, String password) {
+        EmailAccount account = new EmailAccount();
+
+        account.email = email;
+        account.password = password;
+
+        account.type = AuthType.IMAP_BASIC;
+
+        return account;
+    }
+
     /**
      * Converts this EmailAccount to a JsonObject.
      *
