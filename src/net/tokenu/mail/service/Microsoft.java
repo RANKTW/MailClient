@@ -404,55 +404,7 @@ public class Microsoft {
             }
         }
 
-        try {
-            Message[] mailMessages = inbox.getMessages();
-
-            LogUtil.log(String.format("Inbox for %s: %d messages | Unread: %d",
-                    email, inbox.getMessageCount(), inbox.getUnreadMessageCount()));
-
-            // Process the most recent 5 messages (or all if less than 5)
-            int startIndex = Math.max(0, mailMessages.length - 5);
-            List<Message> messagesToProcess = Arrays.asList(Arrays.copyOfRange(mailMessages, startIndex, mailMessages.length));
-            Collections.reverse(messagesToProcess);
-
-            boolean parallel = false;
-
-            Timer timer = Timer.getInstance();
-            if (parallel) {
-                emailMessages = messagesToProcess.parallelStream().map(message -> {
-                    try {
-                        System.out.println("[" + message.getMessageNumber() + "] Loading subject: " + message.getSubject());
-                        // Use lazy loading for IMAP messages
-                        return EmailMessage.fromIMAP(message, lazyLoad);
-                    }
-                    catch (MessagingException e) {
-                        throw new RuntimeException(e);
-                    }
-                }).collect(Collectors.toList());
-            } else {
-                for (int i = mailMessages.length - 1; i >= startIndex; i--) {
-                    System.out.println("[" + i + "] Loading subject: " + mailMessages[i].getSubject());
-                    // Use lazy loading for IMAP messages
-                    EmailMessage message = EmailMessage.fromIMAP(mailMessages[i], lazyLoad);
-                    emailMessages.add(message);
-                }
-            }
-            LogUtil.log("Passed time: " + timer.getTimeString());
-
-            // Don't close connections here - keep them open for lazy loading
-        }
-        catch (AuthenticationFailedException e) {
-            LogUtil.error("Authentication failed for " + email);
-            ThrowableUtil.println(e);
-            closeCurrentConnection();
-        }
-        catch (Exception e) {
-            LogUtil.error("Error retrieving messages for " + email);
-            ThrowableUtil.println(e);
-            // Don't close the connection on other errors, as it might be a temporary issue
-        }
-
-        return emailMessages;
+        return getEmailMessages(email, inbox, emailMessages);
     }
 
     // IMAP Basic
@@ -508,6 +460,10 @@ public class Microsoft {
             }
         }
 
+        return getEmailMessages(email, inbox, emailMessages);
+    }
+
+    private static List<EmailMessage> getEmailMessages(String email, Folder inbox, List<EmailMessage> emailMessages) {
         try {
             Message[] mailMessages = inbox.getMessages();
 
@@ -521,21 +477,48 @@ public class Microsoft {
 
             boolean parallel = false;
 
+            Date currentDate = new Date();
             Timer timer = Timer.getInstance();
             if (parallel) {
                 emailMessages = messagesToProcess.parallelStream().map(message -> {
-                    try {
-                        System.out.println("[" + message.getMessageNumber() + "] Loading subject: " + message.getSubject());
-                        // Use lazy loading for IMAP messages
-                        return EmailMessage.fromIMAP(message, lazyLoad);
-                    }
-                    catch (MessagingException e) {
-                        throw new RuntimeException(e);
-                    }
-                }).collect(Collectors.toList());
-            } else {
+                            try {
+                                if (message.isExpunged()) {
+                                    // Message has been expunged, skip it
+                                    LogUtil.log("Message " + message.getMessageNumber() + " has been expunged, skipping");
+                                    return null;
+                                }
+                                if (message.isSet(Flags.Flag.DELETED)) {
+                                    // Message is marked for deletion
+                                    LogUtil.log("Message " + message.getMessageNumber() + " is marked for deletion, skipping");
+                                    return null;
+                                }
+
+                                System.out.println("[" + message.getMessageNumber() + "] Loading subject: " + message.getSubject());
+                                // Use lazy loading for IMAP messages
+                                return EmailMessage.fromIMAP(message, lazyLoad);
+                            }
+                            catch (MessagingException e) {
+                                throw new RuntimeException(e);
+                            }
+                        })
+                        .filter(Objects::nonNull) // Filter out any nulls from errors
+                        .collect(Collectors.toList());
+            }
+            else {
                 for (int i = mailMessages.length - 1; i >= startIndex; i--) {
-                    System.out.println("[" + i + "] Loading subject: " + mailMessages[i].getSubject());
+                    if (mailMessages[i].isExpunged()) {
+                        // Message has been expunged, skip it
+                        LogUtil.log("Message " + mailMessages[i].getMessageNumber() + " has been expunged, skipping");
+                        continue;
+                    }
+                    if (mailMessages[i].isSet(Flags.Flag.DELETED)) {
+                        // Message is marked for deletion
+                        LogUtil.log("Message " + mailMessages[i].getMessageNumber() + " is marked for deletion, skipping");
+                        continue;
+                    }
+
+                    long diffInMillis = currentDate.getTime() - mailMessages[i].getReceivedDate().getTime();
+                    System.out.printf("[%d] Loading subject: %s\t| %s ago%n", i, mailMessages[i].getSubject(), TimeUtil.millisToTime(diffInMillis));
                     // Use lazy loading for IMAP messages
                     EmailMessage message = EmailMessage.fromIMAP(mailMessages[i], lazyLoad);
                     emailMessages.add(message);
