@@ -455,7 +455,6 @@ public class Microsoft {
                 currentEmail = email;
             } catch (Exception e) {
                 LogUtil.error("Error connecting to IMAP server for " + email);
-                ThrowableUtil.println(e);
                 throw e;
             }
         }
