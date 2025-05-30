@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 
 public class Microsoft {
     public static boolean lazyLoad = true;
+    public static int IMAP_MAXIMUM_LOAD_MESSAGE = 5;
     public static String fileName = "emails.txt";
     public static String hosts = "hosts.json";
     public static Format formatType;
@@ -469,8 +470,8 @@ public class Microsoft {
             LogUtil.log(String.format("Inbox for %s: %d messages | Unread: %d",
                     email, inbox.getMessageCount(), inbox.getUnreadMessageCount()));
 
-            // Process the most recent 5 messages (or all if less than 5)
-            int startIndex = Math.max(0, mailMessages.length - 5);
+            // Process the most recent % messages (or all if less than %)
+            int startIndex = Math.max(0, mailMessages.length - IMAP_MAXIMUM_LOAD_MESSAGE);
             List<Message> messagesToProcess = Arrays.asList(Arrays.copyOfRange(mailMessages, startIndex, mailMessages.length));
             Collections.reverse(messagesToProcess);
 
