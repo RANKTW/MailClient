@@ -1,5 +1,7 @@
 package net.tokenu.mail.ui;
 
+import com.sun.mail.util.MailConnectException;
+import commons.LogUtil;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -15,6 +17,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
 import javafx.scene.web.WebView;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.stage.Stage;
 import commons.ThrowableUtil;
 import javafx.util.Duration;
@@ -36,6 +39,7 @@ public class EmailClientGUI extends Application {
     private BorderPane emailContentPane;
     private Button closeButton;
     private Button loadImageButton;
+    private Button deleteButton;
     private Label subjectLabel;
     private Label receivedDateLabel;
     private Label fromLabel;
@@ -231,9 +235,30 @@ public class EmailClientGUI extends Application {
         loadImageButton.setTooltip(tooltip);
         loadImageButton.setDisable(true); // Initially disabled until email with images is loaded
 
-        // Create a VBox to hold the buttons vertically (Close button on top, Load Images button below)
-        VBox buttonsVBox = new VBox(18); // 5 pixels spacing between buttons
-        buttonsVBox.getChildren().addAll(closeButton, loadImageButton);
+        // Create delete button with trash icon
+        ImageView trashIcon = new ImageView(new Image(getClass().getResourceAsStream("/net/tokenu/mail/trash.png")));
+        trashIcon.setFitHeight(16);
+        trashIcon.setFitWidth(16);
+        deleteButton = new Button();
+        deleteButton.setGraphic(trashIcon);
+        deleteButton.setTooltip(new Tooltip("Delete"));
+        deleteButton.setOnAction(e -> {
+            EmailMessage selectedEmail = emailTableView.getSelectionModel().getSelectedItem();
+            if (selectedEmail != null) {
+                deleteEmail(selectedEmail);
+            }
+        });
+
+        // Create an HBox for deleteButton and loadImageButton
+        HBox actionButtonsBox = new HBox(10); // 10 pixels spacing between buttons
+        actionButtonsBox.getChildren().addAll(loadImageButton, deleteButton);
+
+        // Add the actionButtonsBox to the labelsBox
+        labelsBox.getChildren().add(actionButtonsBox);
+
+        // Create a VBox to hold the close button
+        VBox buttonsVBox = new VBox(18); // 18 pixels spacing between buttons
+        buttonsVBox.getChildren().addAll(closeButton);
         buttonsVBox.setAlignment(Pos.TOP_RIGHT);
 
         // Create a container for the labels and buttons
@@ -528,6 +553,73 @@ public class EmailClientGUI extends Application {
         // Set up the context menu to appear on right-click
         webView.setOnContextMenuRequested(event -> {
             contextMenu.show(webView, event.getScreenX(), event.getScreenY());
+        });
+    }
+
+    /**
+     * Deletes the selected email message.
+     * 
+     * @param email The email message to delete
+     */
+    private void deleteEmail(EmailMessage email) {
+        // Get the currently selected account
+        EmailAccount selectedAccount = accountListView.getSelectionModel().getSelectedItem();
+        if (selectedAccount == null) {
+            statusLabel.setText("No account selected");
+            return;
+        }
+
+        // Confirm deletion
+        Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
+        //confirmDialog.setTitle("Delete Email");
+        confirmDialog.setHeaderText("Delete Email");
+        confirmDialog.setContentText("Are you sure you want to delete this email?\n\nSubject: " + email.getSubject());
+        confirmDialog.getDialogPane().setGraphic(null);
+
+        confirmDialog.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                // Disable the delete button while deleting
+                deleteButton.setDisable(true);
+                statusLabel.setText("Deleting email...");
+
+                // Delete the email in a background thread
+                executorService.submit(() -> {
+                    try {
+                        // Ensure we have a valid access token
+                        if (Microsoft.ensureValidAccessToken(selectedAccount)) {
+                            boolean success = Microsoft.deleteEmail(selectedAccount, email.getId());
+
+                            Platform.runLater(() -> {
+                                if (success) {
+                                    // Remove the email from the list
+                                    emails.remove(email);
+
+                                    // Close the email content pane if it's open
+                                    if (splitPane.getItems().contains(emailContentPane)) {
+                                        splitPane.getItems().remove(emailContentPane);
+                                    }
+
+                                    statusLabel.setText("Email deleted successfully");
+                                } else {
+                                    statusLabel.setText("Failed to delete email");
+                                }
+                                deleteButton.setDisable(false);
+                            });
+                        } else {
+                            Platform.runLater(() -> {
+                                statusLabel.setText("Failed to authenticate account: " + selectedAccount.getEmail());
+                                deleteButton.setDisable(false);
+                            });
+                        }
+                    } catch (Exception ex) {
+                        Platform.runLater(() -> {
+                            statusLabel.setText("Error deleting email: " + ex.getMessage());
+                            deleteButton.setDisable(false);
+                            ThrowableUtil.println(ex);
+                        });
+                    }
+                });
+            }
         });
     }
 
