@@ -774,6 +774,11 @@ public class Microsoft {
                 props.put("mail.imaps.auth.mechanisms", "XOAUTH2");
             }
 
+            if (IMAP_PROXY != null) {
+                props.setProperty("mail.imaps.proxy.host", IMAP_PROXY.getHost());
+                props.setProperty("mail.imaps.proxy.port", String.valueOf(IMAP_PROXY.getPort()));
+            }
+
             // Create session and store
             Session session = Session.getInstance(props);
             store = session.getStore("imaps");
