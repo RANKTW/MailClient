@@ -15,7 +15,7 @@
         "outlook.*",
         "hotmail.*"
       ],
-      "host": "imap-mail.outlook.com"
+      "host": "outlook.office365.com"
     },
     {
       "pattern": [
