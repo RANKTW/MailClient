@@ -387,7 +387,7 @@ public class Microsoft {
 
                 // Create new connection
                 {
-                    Properties props = getProperties(email);
+                    Properties props = getIMAPProperties(email);
 
                     if (isOAuth) {
                         props.put("mail.imaps.auth.mechanisms", "XOAUTH2");
@@ -522,7 +522,7 @@ public class Microsoft {
         return emailMessages;
     }
 
-    public static Properties getProperties(String email) {
+    public static Properties getIMAPProperties(String email) {
         // Connection properties
         Properties props = new Properties();
         props.put("mail.store.protocol", "imaps");
@@ -745,69 +745,7 @@ public class Microsoft {
      * @throws Exception If an error occurs during the IMAP operation
      */
     public static boolean deleteEmailIMAPOAuth(String email, String accessToken, String messageId) throws Exception {
-        Folder inbox = null;
-        Store store = null;
-        boolean success = false;
-
-        try {
-            // Connection properties
-            Properties props = new Properties();
-            props.put("mail.store.protocol", "imaps");
-            props.put("mail.imaps.host", "outlook.office365.com");
-            props.put("mail.imaps.port", "993");
-            props.put("mail.imaps.auth.mechanisms", "XOAUTH2");
-            props.setProperty("mail.imaps.ssl.trust", "*");
-            props.setProperty("mail.imaps.ssl.checkserveridentity", "false");
-
-            // Create session
-            Session session = Session.getInstance(props);
-
-            // Get store
-            store = session.getStore("imaps");
-
-            // Connect using OAuth2
-            store.connect("outlook.office365.com", email, accessToken);
-
-            // Access inbox in READ_WRITE mode
-            inbox = store.getFolder("INBOX");
-            inbox.open(Folder.READ_WRITE);
-
-            // Search for the message with the given ID
-            Message[] messages = inbox.getMessages();
-            for (Message message : messages) {
-                String msgId = message.getHeader("Message-ID") != null ?
-                        message.getHeader("Message-ID")[0] : String.valueOf(message.getMessageNumber());
-
-                if (msgId.equals(messageId)) {
-                    // Mark the message for deletion
-                    message.setFlag(Flags.Flag.DELETED, true);
-                    success = true;
-                    break;
-                }
-            }
-
-            // Expunge the folder to actually delete the messages
-            inbox.close(true);
-            store.close();
-
-            return success;
-        } catch (Exception e) {
-            LogUtil.error("Error deleting message via IMAP OAuth for " + email);
-            ThrowableUtil.println(e);
-            throw e;
-        } finally {
-            try {
-                if (inbox != null && inbox.isOpen()) {
-                    inbox.close(true);
-                }
-                if (store != null) {
-                    store.close();
-                }
-            } catch (Exception e) {
-                LogUtil.error("Error closing IMAP connection");
-                ThrowableUtil.println(e);
-            }
-        }
+        return deleteEmail(email, accessToken, messageId, true);
     }
 
     /**
@@ -820,67 +758,79 @@ public class Microsoft {
      * @throws Exception If an error occurs during the IMAP operation
      */
     public static boolean deleteEmailIMAPBasic(String email, String password, String messageId) throws Exception {
+        return deleteEmail(email, password, messageId, false);
+    }
+
+    // Unified delete method for both OAuth and Basic authentication
+    private static boolean deleteEmail(String email, String credential, String messageId, boolean isOAuth) throws Exception {
         Folder inbox = null;
         Store store = null;
-        boolean success = false;
 
         try {
             // Connection properties
-            Properties props = new Properties();
-            props.put("mail.store.protocol", "imaps");
-            props.put("mail.imaps.host", getHost(email));
-            props.put("mail.imaps.port", "993");
-            props.setProperty("mail.imaps.ssl.trust", "*");
-            props.setProperty("mail.imaps.ssl.checkserveridentity", "false");
+            Properties props = getIMAPProperties(email);
 
-            // Create session
+            if (isOAuth) {
+                props.put("mail.imaps.auth.mechanisms", "XOAUTH2");
+            }
+
+            // Create session and store
             Session session = Session.getInstance(props);
-
-            // Get store
             store = session.getStore("imaps");
 
-            // Connect using basic authentication
-            store.connect(email, password);
+            // Connect using appropriate authentication method
+            store.connect(email, credential);
 
-            // Access inbox in READ_WRITE mode
+            // Access inbox in READ_WRITE mode (required for deletion)
             inbox = store.getFolder("INBOX");
             inbox.open(Folder.READ_WRITE);
 
-            // Search for the message with the given ID
-            Message[] messages = inbox.getMessages();
-            for (Message message : messages) {
-                String msgId = message.getHeader("Message-ID") != null ?
-                        message.getHeader("Message-ID")[0] : String.valueOf(message.getMessageNumber());
-
-                if (msgId.equals(messageId)) {
-                    // Mark the message for deletion
-                    message.setFlag(Flags.Flag.DELETED, true);
-                    success = true;
-                    break;
-                }
-            }
-
-            // Expunge the folder to actually delete the messages
-            inbox.close(true);
-            store.close();
-
-            return success;
-        } catch (Exception e) {
-            LogUtil.error("Error deleting message via IMAP Basic for " + email);
+            // Search for and delete the message
+            return findAndDeleteMessage(inbox, messageId);
+        }
+        catch (Exception e) {
+            String authType = isOAuth ? "OAuth" : "Basic";
+            LogUtil.error("Error deleting message via IMAP " + authType + " for " + email);
             ThrowableUtil.println(e);
             throw e;
-        } finally {
-            try {
-                if (inbox != null && inbox.isOpen()) {
-                    inbox.close(true);
-                }
-                if (store != null) {
-                    store.close();
-                }
-            } catch (Exception e) {
-                LogUtil.error("Error closing IMAP connection");
-                ThrowableUtil.println(e);
+        }
+        finally {
+            closeDeleteConnection(inbox, store);
+        }
+    }
+
+    // Find and delete message by ID
+    private static boolean findAndDeleteMessage(Folder inbox, String messageId) throws Exception {
+        Message[] messages = inbox.getMessages();
+
+        for (Message message : messages) {
+            String msgId = message.getHeader("Message-ID") != null ?
+                    message.getHeader("Message-ID")[0] :
+                    String.valueOf(message.getMessageNumber());
+
+            if (msgId.equals(messageId)) {
+                // Mark the message for deletion
+                message.setFlag(Flags.Flag.DELETED, true);
+                return true;
             }
+        }
+
+        return false; // Message not found
+    }
+
+    // Safely close delete connection
+    private static void closeDeleteConnection(Folder inbox, Store store) {
+        try {
+            if (inbox != null && inbox.isOpen()) {
+                // Close with expunge to actually delete the messages
+                inbox.close(true); // Expunge deleted messages
+            }
+            if (store != null) {
+                store.close();
+            }
+        } catch (Exception e) {
+            LogUtil.error("Error closing IMAP connection");
+            ThrowableUtil.println(e);
         }
     }
 }
