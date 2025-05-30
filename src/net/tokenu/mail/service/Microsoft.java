@@ -29,8 +29,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class Microsoft {
+    public static boolean multipleThreaded = false;
     public static boolean lazyLoad = true;
     public static int IMAP_MAXIMUM_LOAD_MESSAGE = 5;
+    public static ProxyUtil IMAP_PROXY;
+
     public static String fileName = "emails.txt";
     public static String hosts = "hosts.json";
     public static Format formatType;
@@ -353,117 +356,91 @@ public class Microsoft {
 
     // IMAP OAuth
     public static List<EmailMessage> getInboxMessagesIMAPOAuth(String email, String accessToken) throws Exception {
-        List<EmailMessage> emailMessages = new ArrayList<>();
-
-        Folder inbox = null;
-        Store store = null;
-
-        // Check if we need to close previous connection (different email account)
-        if (currentEmail != null && !currentEmail.equals(email)) {
-            closeCurrentConnection();
-        }
-
-        // If we already have an open connection for this email, use it
-        if (currentFolder != null && currentFolder.isOpen() && currentEmail != null && currentEmail.equals(email)) {
-            inbox = currentFolder;
-            store = currentStore;
-            LogUtil.log("Using existing connection for " + email);
-        } else {
-            // Connection properties
-            Properties props = new Properties();
-            props.put("mail.store.protocol", "imaps");
-            props.put("mail.imaps.host", "outlook.office365.com");
-            props.put("mail.imaps.port", "993");
-            props.put("mail.imaps.auth.mechanisms", "XOAUTH2");
-            //props.put("mail.debug", "true");
-
-            props.setProperty("mail.imaps.ssl.trust", "*");
-            props.setProperty("mail.imaps.ssl.checkserveridentity", "false");
-
-            try {
-                // Create session
-                Session session = Session.getInstance(props);
-
-                // Get store
-                store = session.getStore("imaps");
-
-                // Connect using OAuth2
-                store.connect("outlook.office365.com", email, accessToken);
-
-                // Access inbox
-                inbox = store.getFolder("INBOX");
-                inbox.open(Folder.READ_ONLY);
-
-                // Store the current connection
-                currentFolder = inbox;
-                currentStore = store;
-                currentEmail = email;
-            } catch (Exception e) {
-                LogUtil.error("Error connecting to IMAP server for " + email);
-                ThrowableUtil.println(e);
-                throw e;
-            }
-        }
-
-        return getEmailMessages(email, inbox, emailMessages);
+        return getInboxMessages(email, accessToken, true);
     }
 
     // IMAP Basic
     public static List<EmailMessage> getInboxMessagesIMAPBasic(String email, String password) throws Exception {
+        return getInboxMessages(email, password, false);
+    }
+
+    // Unified method for both OAuth and Basic authentication
+    private static List<EmailMessage> getInboxMessages(String email, String credential, boolean isOAuth) throws Exception {
         List<EmailMessage> emailMessages = new ArrayList<>();
 
         Folder inbox = null;
         Store store = null;
+        final boolean closeAfterDone = multipleThreaded;
 
-        // Check if we need to close previous connection (different email account)
-        if (currentEmail != null && !currentEmail.equals(email)) {
-            closeCurrentConnection();
+        try {
+            // Check if we can reuse existing connection (only when not in multipleThreaded mode)
+            if (!multipleThreaded && canReuseConnection(email)) {
+                inbox = currentFolder;
+                store = currentStore;
+                LogUtil.log("Using existing connection for " + email);
+            }
+            else {
+                // Close previous connection if different email account
+                if (!multipleThreaded && Objects.equals(currentEmail, email)) {
+                    closeCurrentConnection();
+                }
+
+                // Create new connection
+                {
+                    Properties props = getProperties(email);
+
+                    if (isOAuth) {
+                        props.put("mail.imaps.auth.mechanisms", "XOAUTH2");
+                    }
+
+                    if (IMAP_PROXY != null) {
+                        props.setProperty("mail.imaps.proxy.host", IMAP_PROXY.getHost());
+                        props.setProperty("mail.imaps.proxy.port", String.valueOf(IMAP_PROXY.getPort()));
+                    }
+
+                    try {
+                        // Create session and store
+                        Session session = Session.getInstance(props);
+                        store = session.getStore("imaps");
+
+                        // Connect using appropriate authentication method
+                        store.connect(email, credential);
+
+                        // Access inbox
+                        inbox = store.getFolder("INBOX");
+                        inbox.open(Folder.READ_ONLY);
+                    }
+                    catch (Exception e) {
+                        LogUtil.error(String.format("Error connecting to IMAP server %s for %s",
+                                getHost(email),
+                                email));
+                        throw e;
+                    }
+                }
+
+                // Store connection for reuse (only when not in multipleThreaded mode)
+                if (!multipleThreaded) {
+                    currentFolder = inbox;
+                    currentStore = store;
+                    currentEmail = email;
+                }
+            }
+
+            return getEmailMessages(email, inbox, emailMessages);
         }
-
-        // If we already have an open connection for this email, use it
-        if (currentFolder != null && currentFolder.isOpen() && currentEmail != null && currentEmail.equals(email)) {
-            inbox = currentFolder;
-            store = currentStore;
-            LogUtil.log("Using existing connection for " + email);
-        } else {
-            // Connection properties
-            Properties props = new Properties();
-            props.put("mail.store.protocol", "imaps");
-            props.put("mail.imaps.host", getHost(email));
-            props.put("mail.imaps.port", "993");
-            //props.put("mail.debug", "true");
-
-            props.setProperty("mail.imaps.ssl.trust", "*");
-            props.setProperty("mail.imaps.ssl.checkserveridentity", "false");
-
-            try {
-                // Create session
-                Session session = Session.getInstance(props);
-
-                // Get store
-                store = session.getStore("imaps");
-
-                // Connect using OAuth2
-                store.connect( email, password);
-
-                // Access inbox
-                inbox = store.getFolder("INBOX");
-                inbox.open(Folder.READ_ONLY);
-
-                // Store the current connection
-                currentFolder = inbox;
-                currentStore = store;
-                currentEmail = email;
-            } catch (Exception e) {
-                LogUtil.error("Error connecting to IMAP server for " + email);
-                throw e;
+        catch (AuthenticationFailedException e) {
+            LogUtil.error("Authentication failed for " + email);
+            ThrowableUtil.println(e);
+            closeCurrentConnection();
+            throw e;
+        }
+        finally {
+            if (closeAfterDone) {
+                closeConnection(inbox, store, email);
             }
         }
-
-        return getEmailMessages(email, inbox, emailMessages);
     }
-
-    private static List<EmailMessage> getEmailMessages(String email, Folder inbox, List<EmailMessage> emailMessages) {
+    private static List<EmailMessage> getEmailMessages(String email, Folder inbox, List<EmailMessage> emailMessages) throws MessagingException {
         try {
             Message[] mailMessages = inbox.getMessages();
 
@@ -476,6 +453,13 @@ public class Microsoft {
             Collections.reverse(messagesToProcess);
 
             boolean parallel = false;
+
+            // Determine whether to use lazy loading
+            // If multipleThreaded is true, disable lazy loading
+            boolean useLazyLoad = multipleThreaded ? false : lazyLoad;
+            //if (multipleThreaded) {
+            //    LogUtil.log("multipleThreaded mode: lazy loading disabled");
+            //}
 
             Date currentDate = new Date();
             Timer timer = Timer.getInstance();
@@ -493,9 +477,11 @@ public class Microsoft {
                                     return null;
                                 }
 
-                                System.out.println("[" + message.getMessageNumber() + "] Loading subject: " + message.getSubject());
-                                // Use lazy loading for IMAP messages
-                                return EmailMessage.fromIMAP(message, lazyLoad);
+                                long diffInMillis = currentDate.getTime() - message.getReceivedDate().getTime();
+                                System.out.printf("[%d] Loading subject: %s\t| %s ago%n",
+                                        message.getMessageNumber(), message.getSubject(), TimeUtil.millisToTime(diffInMillis));
+                                // Use lazy loading based on the determined setting
+                                return EmailMessage.fromIMAP(message, useLazyLoad);
                             }
                             catch (MessagingException e) {
                                 throw new RuntimeException(e);
@@ -518,9 +504,10 @@ public class Microsoft {
                     }
 
                     long diffInMillis = currentDate.getTime() - mailMessages[i].getReceivedDate().getTime();
-                    System.out.printf("[%d] Loading subject: %s\t| %s ago%n", i, mailMessages[i].getSubject(), TimeUtil.millisToTime(diffInMillis));
-                    // Use lazy loading for IMAP messages
-                    EmailMessage message = EmailMessage.fromIMAP(mailMessages[i], lazyLoad);
+                    System.out.printf("[%d] Loading subject: %s\t| %s ago%n",
+                            i, mailMessages[i].getSubject(), TimeUtil.millisToTime(diffInMillis));
+                    // Use lazy loading based on the determined setting
+                    EmailMessage message = EmailMessage.fromIMAP(mailMessages[i], useLazyLoad);
                     emailMessages.add(message);
                 }
             }
@@ -528,20 +515,28 @@ public class Microsoft {
 
             // Don't close connections here - keep them open for lazy loading
         }
-        catch (AuthenticationFailedException e) {
-            LogUtil.error("Authentication failed for " + email);
-            ThrowableUtil.println(e);
-            closeCurrentConnection();
-        }
         catch (Exception e) {
             LogUtil.error("Error retrieving messages for " + email);
-            ThrowableUtil.println(e);
-            // Don't close the connection on other errors, as it might be a temporary issue
+            throw e;
         }
-
         return emailMessages;
     }
 
+    public static Properties getProperties(String email) {
+        // Connection properties
+        Properties props = new Properties();
+        props.put("mail.store.protocol", "imaps");
+        props.put("mail.imaps.host", getHost(email));
+        props.put("mail.imaps.port", "993");
+        //props.put("mail.debug", "true");
+
+        props.setProperty("mail.imaps.ssl.trust", "*");
+        props.setProperty("mail.imaps.ssl.checkserveridentity", "false");
+
+        props.setProperty("mail.imaps.connectiontimeout", "10000"); // Timeout in milliseconds (10 seconds)
+        props.setProperty("mail.imaps.timeout", "10000");           // I/O timeout in milliseconds
+        return props;
+    }
     public static String getHost(String email){
         String domain = email.split("@")[1].toLowerCase();
 
@@ -610,6 +605,14 @@ public class Microsoft {
         return false;
     }
 
+    // Check if existing connection can be reused
+    public static boolean canReuseConnection(String email) {
+        return currentFolder != null &&
+                currentFolder.isOpen() &&
+                currentEmail != null &&
+                currentEmail.equals(email);
+    }
+
     /**
      * Closes the current IMAP folder and store connection.
      * This should be called when switching to a different email account or when the application exits.
@@ -644,6 +647,20 @@ public class Microsoft {
         }
 
         currentEmail = null;
+    }
+    public static void closeConnection(Folder inbox, Store store, String email) {
+        try {
+            if (inbox != null && inbox.isOpen()) {
+                inbox.close(false);
+            }
+            if (store != null) {
+                store.close();
+            }
+            LogUtil.warning(email + " connection closed (multipleThreaded mode)");
+        }
+        catch (MessagingException e) {
+            ThrowableUtil.println(e);
+        }
     }
 
     /**
