@@ -4,15 +4,15 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import commons.*;
-import commons.Timer;
-import commons.http.Headers;
-import commons.http.HttpClient;
-import commons.http.ProxyUtil;
-import commons.http.ResponseContent;
-import commons.exception.ConnectException;
-import commons.json.JsonObjectUtil;
-import commons.json.JsonUtil;
+import com.commons.*;
+import com.commons.Timer;
+import com.commons.http.Headers;
+import com.commons.http.HttpClient;
+import com.commons.http.ProxyUtil;
+import com.commons.http.ResponseContent;
+import com.commons.exception.ConnectException;
+import com.commons.json.JsonObjectUtil;
+import com.commons.json.JsonUtil;
 import net.tokenu.mail.Main;
 import net.tokenu.mail.model.EmailAccount;
 import net.tokenu.mail.model.EmailMessage;
@@ -317,7 +317,7 @@ public class Microsoft {
                         Headers.create()
                                 .setContentType("application/x-www-form-urlencoded")
                                 .get());
-        response.println();
+        LogUtil.log(response.printMinimum());
 
         // Parse JSON response
         JSONObject jsonResponse = new JSONObject(response.getContent());

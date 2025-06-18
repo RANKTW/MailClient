@@ -1,8 +1,8 @@
 package net.tokenu.mail.model;
 
-import commons.FileUtil;
-import commons.LogUtil;
-import commons.ThrowableUtil;
+import com.commons.FileUtil;
+import com.commons.LogUtil;
+import com.commons.ThrowableUtil;
 import org.json.JSONArray;
 import org.json.JSONObject;
 

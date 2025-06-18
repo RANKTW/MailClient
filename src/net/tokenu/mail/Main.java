@@ -1,6 +1,6 @@
 package net.tokenu.mail;
 
-import commons.*;
+import com.commons.*;
 import net.tokenu.mail.service.Microsoft;
 import net.tokenu.mail.ui.EmailClientGUI;
 

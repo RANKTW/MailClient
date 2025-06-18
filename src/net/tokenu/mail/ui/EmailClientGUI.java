@@ -1,7 +1,7 @@
 package net.tokenu.mail.ui;
 
 import com.sun.mail.util.MailConnectException;
-import commons.LogUtil;
+import com.commons.LogUtil;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -19,7 +19,7 @@ import javafx.scene.web.WebView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.stage.Stage;
-import commons.ThrowableUtil;
+import com.commons.ThrowableUtil;
 import javafx.util.Duration;
 import net.tokenu.mail.model.EmailAccount;
 import net.tokenu.mail.model.EmailMessage;
