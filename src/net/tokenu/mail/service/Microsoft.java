@@ -148,6 +148,36 @@ public class Microsoft {
                             }
                         });
             }
+            else if (content.contains("----")) {
+                formatType = Format.DASH_SEPARATED;
+                Arrays.stream(content.split("\n"))
+                        .distinct()
+                        .forEach(s -> {
+                            try {
+                                String[] email = s.split("----");
+                                if (email.length == 2) {
+                                    array.add(
+                                            JsonObjectUtil.create()
+                                                    .add("email", email[0])
+                                                    .add("password", email[1])
+                                                    .build()
+                                    );
+                                }
+                                else {
+                                    array.add(
+                                            JsonObjectUtil.create()
+                                                    .add("email", email[0])
+                                                    .add("password", email[1])
+                                                    .add("clientId", email[2])
+                                                    .add("refreshToken", email[3])
+                                                    .build()
+                                    );
+                                }
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+            }
             else {
                 throw new RuntimeException("Unsupported format");
             }
