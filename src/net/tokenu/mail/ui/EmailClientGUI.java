@@ -451,12 +451,20 @@ public class EmailClientGUI extends Application {
                 }
 
                 // Update UI on JavaFX thread
-                Platform.runLater(() -> emailContentView.getEngine().loadContent(finalContent, "text/html"));
+                Platform.runLater(() -> {
+                    emailContentView.getEngine().loadContent(finalContent, "text/html");
+
+                    // Refresh the table view to update the preview text
+                    emailTableView.refresh();
+                });
             } catch (Exception e) {
                 // Handle any errors
                 Platform.runLater(() -> {
                     emailContentView.getEngine().loadContent("<div style='color:red; margin:20px;'><h3>Error loading content</h3><p>" + e.getMessage() + "</p></div>", "text/html");
                     ThrowableUtil.println(e);
+
+                    // Refresh the table view even in case of error
+                    emailTableView.refresh();
                 });
             }
         });
