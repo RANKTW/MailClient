@@ -3,6 +3,7 @@ package net.tokenu.mail.model;
 import com.commons.FileUtil;
 import com.commons.LogUtil;
 import com.commons.ThrowableUtil;
+import net.tokenu.mail.service.MailContentExtractor;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -135,11 +136,11 @@ public class EmailMessage {
             } else {
                 // Extract body and preview immediately (original behavior)
                 try {
-                    // Use Checker.getText for preview (plain text content)
-                    String textContent = getText(message.getContent());
+                    // preview (plain text content)
+                    String textContent = MailContentExtractor.getPlainTextContent(message);
 
-                    // Use Checker.getHtml for body (HTML content) if null use (plain text content)
-                    String htmlContent = getHtml(message.getContent());
+                    // body (HTML content) if null use (plain text content)
+                    String htmlContent = MailContentExtractor.getHtmlContent(message);
                     emailMessage.body = htmlContent != null ? htmlContent : textContent;
 
                     // Set content type based on whether HTML content is available
@@ -178,106 +179,6 @@ public class EmailMessage {
     // For backward compatibility
     public static EmailMessage fromIMAP(Message message) {
         return fromIMAP(message, lazyLoad);
-    }
-    private static String getHtml(Object content){
-        try {
-            if (content instanceof Multipart) {
-                Multipart multi = ((Multipart) content);
-                int parts = multi.getCount();
-
-                for (int j = 0; j < parts; ++j) {
-                    MimeBodyPart part = (MimeBodyPart) multi.getBodyPart(j);
-                    if (!part.isMimeType("text/html")&&
-                            !part.isMimeType("multipart/alternative")) continue;
-                    return getContent(part, true);
-                }
-            }
-            if (content instanceof String) {
-                return (String) content;
-            }
-        }
-        catch (Exception e){
-            ThrowableUtil.println(e);
-        }
-        return null;
-    }
-    private static String getText(Object content){
-        try {
-            if (content instanceof Multipart) {
-                Multipart multi = ((Multipart) content);
-                int parts = multi.getCount();
-
-                String plain = null;
-                for (int j = 0; j < parts; ++j) {
-                    MimeBodyPart part = (MimeBodyPart) multi.getBodyPart(j);
-                    if (part.isMimeType("text/plain")) {
-                        plain = getContent(part, false);
-                    }
-                }
-                if (plain != null) return plain;
-
-                for (int j = 0; j < parts; ++j) {
-                    MimeBodyPart part = (MimeBodyPart) multi.getBodyPart(j);
-                    if (!part.isMimeType("multipart/alternative")) continue;
-                    return getContent(part, false);
-                }
-            }
-        }
-        catch (Exception e){
-            ThrowableUtil.println(e);
-        }
-        return null;
-    }
-    private static String getContent(Part p, boolean preferHTML) throws MessagingException, IOException {
-        if (p.isMimeType("text/*")) {
-            return (String) p.getContent();
-        }
-        if (p.isMimeType("multipart/alternative")) {
-            Multipart mp = (Multipart) p.getContent();
-
-            String plain = null;
-            String html = null;
-            for (int i = 0; i < mp.getCount(); i++) {
-                Part bp = mp.getBodyPart(i);
-                //LogUtil.warning(bp.getContentType());
-                if (bp.isMimeType("text/plain")) {
-                    String content = getContent(bp, preferHTML);
-                    if (content != null) {
-                        plain = content;
-                        if (!preferHTML) return plain;
-                    }
-                } else if (bp.isMimeType("text/html")) {
-                    String content = getContent(bp, preferHTML);
-                    if (content != null) {
-                        html = content;
-                        if (preferHTML) return html;
-                    }
-                } else {
-                    LogUtil.error(bp.getContentType());
-                    return getContent(bp, preferHTML);
-                }
-            }
-            return plain;
-        }
-
-         /*if (p.isMimeType("multipart/*")) {
-            Multipart mp = (Multipart)p.getContent();
-            for (int i = 0; i < mp.getCount(); i++) {
-                String s = getContent(mp.getBodyPart(i));
-                if (s != null) return s;
-            }
-        }*/
-
-        //multipart/mixed
-        //Used for sending files or multiple parts where each part may be different (e.g., text + attachments).
-        //Common in email messages with attachments.
-
-        //multipart/alternative
-        //Used to offer the same information in different formats (e.g., plain text and HTML).
-        //The email client selects the best version it can display.
-
-        LogUtil.error(p.getContentType());
-        return null;
     }
 
     // Getters
