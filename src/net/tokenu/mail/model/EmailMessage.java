@@ -107,7 +107,7 @@ public class EmailMessage {
                     message.getHeader("Message-ID")[0] : String.valueOf(message.getMessageNumber());
 
             // Extract subject
-            emailMessage.subject = message.getSubject() != null ? message.getSubject() : "No Subject";
+            emailMessage.subject = message.getSubject() != null ? MailContentExtractor.decodeMimeHeader(message.getSubject()) : "No Subject";
 
             // Extract received date
             emailMessage.receivedDateTime = message.getReceivedDate().toString();
@@ -228,11 +228,11 @@ public class EmailMessage {
             if (originalMessage != null) {
                 System.out.println("Loading body: " + getSubject());
 
-                // Use getText for preview (plain text content)
-                String textContent = getText(originalMessage.getContent());
+                // preview (plain text content)
+                String textContent = MailContentExtractor.getPlainTextContent(originalMessage);
 
-                // Use getHtml for body (HTML content) if null use (plain text content)
-                String htmlContent = getHtml(originalMessage.getContent());
+                // body (HTML content) if null use (plain text content)
+                String htmlContent = MailContentExtractor.getHtmlContent(originalMessage);
                 body = htmlContent != null ? htmlContent : textContent;
 
                 // Set content type based on whether HTML content is available

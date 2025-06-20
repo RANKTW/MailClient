@@ -1,4 +1,6 @@
 package net.tokenu.mail.service;
+import com.commons.ThrowableUtil;
+
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Multipart;
@@ -6,29 +8,36 @@ import javax.mail.Part;
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeUtility;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class MailContentExtractor {
-    public static String decodeMimeHeader(String header) throws Exception {
+    public static String decodeMimeHeader(String header) {
         if (!header.contains("=?")) return header;
 
-        Pattern p = Pattern.compile("=\\?[^?]+\\?[QqBb]\\?[^?]*\\?=");
-        Matcher m = p.matcher(header);
-        StringBuilder decoded = new StringBuilder();
-        int lastEnd = 0;
+        try {
+            Pattern p = Pattern.compile("=\\?[^?]+\\?[QqBb]\\?[^?]*\\?=");
+            Matcher m = p.matcher(header);
+            StringBuilder decoded = new StringBuilder();
+            int lastEnd = 0;
 
-        while (m.find()) {
-            // Append any plain text before this encoded section
-            decoded.append(header, lastEnd, m.start());
-            // Decode this encoded section
-            decoded.append(MimeUtility.decodeText(m.group()));
-            lastEnd = m.end();
+            while (m.find()) {
+                // Append any plain text before this encoded section
+                decoded.append(header, lastEnd, m.start());
+                // Decode this encoded section
+                decoded.append(MimeUtility.decodeText(m.group()));
+                lastEnd = m.end();
+            }
+
+            // Append any remaining plain text
+            decoded.append(header.substring(lastEnd));
+            return decoded.toString();
         }
-
-        // Append any remaining plain text
-        decoded.append(header.substring(lastEnd));
-        return decoded.toString();
+        catch (UnsupportedEncodingException e) {
+            ThrowableUtil.println(e);
+            return header;
+        }
     }
 
     /**

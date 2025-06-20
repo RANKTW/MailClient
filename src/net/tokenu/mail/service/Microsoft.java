@@ -509,7 +509,8 @@ public class Microsoft {
 
                                 long diffInMillis = currentDate.getTime() - message.getReceivedDate().getTime();
                                 System.out.printf("[%d] Loading subject: %s\t| %s ago%n",
-                                        message.getMessageNumber(), message.getSubject(), TimeUtil.millisToTime(diffInMillis));
+                                        message.getMessageNumber(), MailContentExtractor.decodeMimeHeader(message.getSubject()),
+                                        TimeUtil.millisToTime(diffInMillis));
                                 // Use lazy loading based on the determined setting
                                 return EmailMessage.fromIMAP(message, useLazyLoad);
                             }
@@ -535,7 +536,8 @@ public class Microsoft {
 
                     long diffInMillis = currentDate.getTime() - mailMessages[i].getReceivedDate().getTime();
                     System.out.printf("[%d] Loading subject: %s\t| %s ago%n",
-                            i, mailMessages[i].getSubject(), TimeUtil.millisToTime(diffInMillis));
+                            i, MailContentExtractor.decodeMimeHeader(mailMessages[i].getSubject()),
+                            TimeUtil.millisToTime(diffInMillis));
                     // Use lazy loading based on the determined setting
                     EmailMessage message = EmailMessage.fromIMAP(mailMessages[i], useLazyLoad);
                     emailMessages.add(message);
