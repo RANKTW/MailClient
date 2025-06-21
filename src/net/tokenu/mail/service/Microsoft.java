@@ -416,36 +416,25 @@ public class Microsoft {
                 }
 
                 // Create new connection
-                {
-                    Properties props = getIMAPProperties(email);
+                try {
+                    Properties props = getIMAPProperties(email, isOAuth);
 
-                    if (isOAuth) {
-                        props.put("mail.imaps.auth.mechanisms", "XOAUTH2");
-                    }
+                    // Create session and store
+                    Session session = Session.getInstance(props);
+                    store = session.getStore("imaps");
 
-                    if (IMAP_PROXY != null) {
-                        props.setProperty("mail.imaps.proxy.host", IMAP_PROXY.getHost());
-                        props.setProperty("mail.imaps.proxy.port", String.valueOf(IMAP_PROXY.getPort()));
-                    }
+                    // Connect using appropriate authentication method
+                    store.connect(email, credential);
 
-                    try {
-                        // Create session and store
-                        Session session = Session.getInstance(props);
-                        store = session.getStore("imaps");
-
-                        // Connect using appropriate authentication method
-                        store.connect(email, credential);
-
-                        // Access inbox
-                        inbox = store.getFolder("INBOX");
-                        inbox.open(Folder.READ_ONLY);
-                    }
-                    catch (Exception e) {
-                        LogUtil.error(String.format("Error connecting to IMAP server %s for %s",
-                                getHost(email),
-                                email));
-                        throw e;
-                    }
+                    // Access inbox
+                    inbox = store.getFolder("INBOX");
+                    inbox.open(Folder.READ_ONLY);
+                }
+                catch (Exception e) {
+                    LogUtil.error(String.format("Error connecting to IMAP server %s for %s",
+                            getHost(email),
+                            email));
+                    throw e;
                 }
 
                 // Store connection for reuse (only when not in multipleThreaded mode)
@@ -554,7 +543,7 @@ public class Microsoft {
         return emailMessages;
     }
 
-    public static Properties getIMAPProperties(String email) {
+    public static Properties getIMAPProperties(String email, boolean isOAuth) {
         // Connection properties
         Properties props = new Properties();
         props.put("mail.store.protocol", "imaps");
@@ -565,8 +554,31 @@ public class Microsoft {
         props.setProperty("mail.imaps.ssl.trust", "*");
         props.setProperty("mail.imaps.ssl.checkserveridentity", "false");
 
+        // Enforce SSL socket factory
+        props.put("mail.imaps.ssl.enable", "true");
+        props.put("mail.imaps.socketFactory.port", "993");
+        props.put("mail.imaps.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+        props.put("mail.imaps.socketFactory.fallback", "false");
+
+        // STARTTLS
+        //props.put("mail.imap.host", "imap.example.com");
+        //props.put("mail.imap.port", "143");
+        //props.put("mail.imap.starttls.enable", "true");
+
+        if (isOAuth) {
+            props.put("mail.imaps.auth.mechanisms", "XOAUTH2");
+            props.put("mail.imaps.auth.login.disable", "true");
+            props.put("mail.imaps.auth.plain.disable", "true");
+        }
+
+        if (IMAP_PROXY != null) {
+            props.setProperty("mail.imaps.proxy.host", IMAP_PROXY.getHost());
+            props.setProperty("mail.imaps.proxy.port", String.valueOf(IMAP_PROXY.getPort()));
+        }
+
         props.setProperty("mail.imaps.connectiontimeout", "30000"); // Timeout in milliseconds (30 seconds)
         props.setProperty("mail.imaps.timeout", "30000");           // I/O timeout in milliseconds
+
         return props;
     }
     public static String getHost(String email){
@@ -800,16 +812,7 @@ public class Microsoft {
 
         try {
             // Connection properties
-            Properties props = getIMAPProperties(email);
-
-            if (isOAuth) {
-                props.put("mail.imaps.auth.mechanisms", "XOAUTH2");
-            }
-
-            if (IMAP_PROXY != null) {
-                props.setProperty("mail.imaps.proxy.host", IMAP_PROXY.getHost());
-                props.setProperty("mail.imaps.proxy.port", String.valueOf(IMAP_PROXY.getPort()));
-            }
+            Properties props = getIMAPProperties(email, isOAuth);
 
             // Create session and store
             Session session = Session.getInstance(props);

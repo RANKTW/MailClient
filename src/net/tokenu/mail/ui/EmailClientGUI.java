@@ -335,6 +335,9 @@ public class EmailClientGUI extends Application {
         executorService.submit(() -> {
             try {
                 if (Microsoft.ensureValidAccessToken(account)) {
+                    // Save updated tokens
+                    Microsoft.saveEmailAccounts(accounts);
+
                     List<EmailMessage> messages;
                     if (account.getType().equals(AuthType.GRAPH)) {
                         try {
@@ -363,10 +366,8 @@ public class EmailClientGUI extends Application {
                             emailTableView.setPlaceholder(new Label("No emails found in inbox for " + account.getEmail()));
                         }
                     });
-
-                    // Save updated tokens
-                    Microsoft.saveEmailAccounts(accounts);
-                } else {
+                }
+                else {
                     Platform.runLater(() -> {
                         statusLabel.setText("Failed to authenticate account: " + account.getEmail());
                         refreshButton.setDisable(false);
