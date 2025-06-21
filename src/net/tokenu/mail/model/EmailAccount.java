@@ -20,6 +20,7 @@ public class EmailAccount {
 
     private AuthType type;
 
+    private static final String refreshTokenKey = "refreshToken";
     private static final String accessTokenKey = "accessToken";
     private static final String expiresInKey = "expiresIn";
 
@@ -78,12 +79,24 @@ public class EmailAccount {
 
     /**
      * Updates the access token and expiration time.
-     * 
+     *
      * @param accessToken The new access token
      * @param expiresIn The expiration time in seconds from now
      */
     public void updateAccessToken(String accessToken, long expiresIn, AuthType type) {
         this.type = type;
+        this.accessToken = accessToken;
+        this.expiresIn = Instant.now().plusSeconds(expiresIn).toEpochMilli();
+    }
+    /**
+     * Updates the access token and expiration time.
+     *
+     * @param accessToken The new access token
+     * @param expiresIn The expiration time in seconds from now
+     */
+    public void updateAccessToken(String refreshToken, String accessToken, long expiresIn, AuthType type) {
+        this.type = type;
+        this.refreshToken = refreshToken;
         this.accessToken = accessToken;
         this.expiresIn = Instant.now().plusSeconds(expiresIn).toEpochMilli();
     }
@@ -105,6 +118,7 @@ public class EmailAccount {
      */
     public void updateJsonObject(JsonObject jsonObj) {
         if (accessToken == null) return;
+        jsonObj.addProperty(refreshTokenKey, refreshToken);
         jsonObj.addProperty(accessTokenKey, accessToken);
         jsonObj.addProperty(expiresInKey, expiresIn);
         jsonObj.addProperty("type", type.name());

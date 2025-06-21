@@ -280,13 +280,14 @@ public class Microsoft {
         try {
             if (!account.hasValidAccessToken()) {
                 JSONObject jsonResponse = getAccessToken(account.getClientId(), account.getRefreshToken());
+                String refreshToken = jsonResponse.getString("refresh_token");
                 String accessToken = jsonResponse.getString("access_token");
                 long expires_in = jsonResponse.getLong("expires_in");
                 String scope = jsonResponse.getString("scope");
                 // "scope": "https://graph.microsoft.com/Mail.ReadWrite",
                 // "scope": "https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/POP.AccessAsUser.All https://outlook.office.com/EWS.AccessAsUser.All https://outlook.office.com/SMTP.Send",
                 AuthType type = scope.contains("graph") ? AuthType.GRAPH : AuthType.IMAP_OAUTH;
-                account.updateAccessToken(accessToken, expires_in, type);
+                account.updateAccessToken(refreshToken, accessToken, expires_in, type);
                 return true;
             }
             return true;
