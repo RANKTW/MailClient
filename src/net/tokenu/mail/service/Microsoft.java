@@ -565,8 +565,8 @@ public class Microsoft {
         props.setProperty("mail.imaps.ssl.trust", "*");
         props.setProperty("mail.imaps.ssl.checkserveridentity", "false");
 
-        props.setProperty("mail.imaps.connectiontimeout", "10000"); // Timeout in milliseconds (10 seconds)
-        props.setProperty("mail.imaps.timeout", "10000");           // I/O timeout in milliseconds
+        props.setProperty("mail.imaps.connectiontimeout", "30000"); // Timeout in milliseconds (30 seconds)
+        props.setProperty("mail.imaps.timeout", "30000");           // I/O timeout in milliseconds
         return props;
     }
     public static String getHost(String email){
