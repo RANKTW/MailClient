@@ -373,9 +373,19 @@ public class EmailClientGUI extends Application {
                         refreshButton.setDisable(false);
                     });
                 }
-            } catch (Exception e) {
+            }
+            catch (MailConnectException e) {
                 Platform.runLater(() -> {
-                    statusLabel.setText("Error loading emails: " + e.getMessage());
+                    String message = ThrowableUtil.exceptionMessagesSingleLine(e);
+                    statusLabel.setText("Error loading emails: " + message);
+                    refreshButton.setDisable(false);
+                    LogUtil.error(message);
+                });
+            }
+            catch (Exception e) {
+                Platform.runLater(() -> {
+                    String message = ThrowableUtil.exceptionMessagesSingleLine(e);
+                    statusLabel.setText("Error loading emails: " + message);
                     refreshButton.setDisable(false);
                     ThrowableUtil.println(e);
                 });

@@ -545,6 +545,8 @@ public class Microsoft {
     }
 
     public static Properties getIMAPProperties(String email, boolean isOAuth) {
+        // https://javaee.github.io/javamail/docs/api/com/sun/mail/imap/package-summary.html
+
         // Connection properties
         Properties props = new Properties();
         props.put("mail.store.protocol", "imaps");
@@ -567,6 +569,7 @@ public class Microsoft {
         //props.put("mail.imap.starttls.enable", "true");
 
         if (isOAuth) {
+            //props.put("mail.imaps.sasl.enable", "true");
             props.put("mail.imaps.auth.mechanisms", "XOAUTH2");
             props.put("mail.imaps.auth.login.disable", "true");
             props.put("mail.imaps.auth.plain.disable", "true");
@@ -575,6 +578,8 @@ public class Microsoft {
         if (IMAP_PROXY != null) {
             props.setProperty("mail.imaps.proxy.host", IMAP_PROXY.getHost());
             props.setProperty("mail.imaps.proxy.port", String.valueOf(IMAP_PROXY.getPort()));
+            //mail.imap.proxy.user
+            //mail.imap.proxy.password
         }
 
         props.setProperty("mail.imaps.connectiontimeout", "30000"); // Timeout in milliseconds (30 seconds)
