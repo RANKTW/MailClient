@@ -36,6 +36,14 @@ Need high-quality cheap proxies?
 {email,password,clientId,refreshToken}
 ```
 ---
+#### Dash Separated format
+###### for Microsoft `Graph API` or `IMAP OAuth2`
+```
+email----password----clientId----refreshToken
+email----password----clientId----refreshToken
+email----password----clientId----refreshToken
+```
+---
 #### Colon Separated format
 ###### for other common email providers that use `IMAP Basic Authentication`
 ###### such as mail.com, gmx.com, rambler.ru, mail.ru. See all in `hosts.json`
