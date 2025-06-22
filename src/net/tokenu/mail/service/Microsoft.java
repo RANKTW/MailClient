@@ -89,6 +89,9 @@ public class Microsoft {
     }
 
     private static JsonArray loadFile(){
+        return loadFile(fileName);
+    }
+    private static JsonArray loadFile(String fileName){
         JsonArray array = new JsonArray();
         try {
             String content = FileUtil.readString(fileName);
@@ -194,9 +197,12 @@ public class Microsoft {
      * @return A list of EmailAccount objects
      */
     public static List<EmailAccount> loadEmailAccounts() {
+        return loadEmailAccounts(fileName);
+    }
+    public static List<EmailAccount> loadEmailAccounts(String fileName) {
         List<EmailAccount> accounts = new ArrayList<>();
         List<EmailAccount> duplicates = new ArrayList<>();
-        JsonArray array = loadFile();
+        JsonArray array = loadFile(fileName);
 
         try {
             for (int i = 0; i < array.size(); i++) {
@@ -877,6 +883,120 @@ public class Microsoft {
         } catch (Exception e) {
             LogUtil.error("Error closing IMAP connection");
             ThrowableUtil.println(e);
+        }
+    }
+
+    /**
+     * Deletes all email messages in the inbox for the given account.
+     * 
+     * @param account The email account
+     * @return the number of deleted messages
+     * @throws Exception If an error occurs during the deletion process
+     */
+    public static int deleteAllEmail(EmailAccount account) throws Exception {
+        if (account.getType().equals(AuthType.GRAPH)) {
+            return deleteAllEmailGraphAPI(account.getAccessToken());
+        }
+        else if (account.getType().equals(AuthType.IMAP_OAUTH)) {
+            return deleteAllEmailIMAPOAuth(account.getEmail(), account.getAccessToken());
+        }
+        else { // account.getType().equals(AuthType.IMAP_BASIC)
+            return deleteAllEmailIMAPBasic(account.getEmail(), account.getPassword());
+        }
+    }
+
+    /**
+     * Deletes all email messages in the inbox using the Microsoft Graph API.
+     * 
+     * @param accessToken The access token for authentication
+     * @return the number of deleted messages
+     * @throws Exception If an error occurs during the API call
+     */
+    private static int deleteAllEmailGraphAPI(String accessToken) throws Exception {
+        // First get all messages
+        List<EmailMessage> messages = getInboxMessagesGraphAPI(accessToken);
+
+        if (messages.isEmpty()) {
+            return 0; // No messages to delete
+        }
+
+        int deletedCount = 0;
+
+        // Delete each message
+        for (EmailMessage message : messages) {
+            boolean deleted = deleteEmailGraphAPI(accessToken, message.getId());
+            if (deleted) deletedCount++;
+        }
+
+        return deletedCount;
+    }
+
+    /**
+     * Deletes all email messages in the inbox using IMAP with OAuth authentication.
+     * 
+     * @param email The email address
+     * @param accessToken The OAuth access token
+     * @return the number of deleted messages
+     * @throws Exception If an error occurs during the IMAP operation
+     */
+    private static int deleteAllEmailIMAPOAuth(String email, String accessToken) throws Exception {
+        return deleteAllEmailIMAP(email, accessToken, true);
+    }
+
+    /**
+     * Deletes all email messages in the inbox using IMAP with basic authentication.
+     * 
+     * @param email The email address
+     * @param password The password
+     * @return the number of deleted messages
+     * @throws Exception If an error occurs during the IMAP operation
+     */
+    private static int deleteAllEmailIMAPBasic(String email, String password) throws Exception {
+        return deleteAllEmailIMAP(email, password, false);
+    }
+
+    // Unified delete all method for both OAuth and Basic authentication
+    private static int deleteAllEmailIMAP(String email, String credential, boolean isOAuth) throws Exception {
+        Folder inbox = null;
+        Store store = null;
+
+        try {
+            // Connection properties
+            Properties props = getIMAPProperties(email, isOAuth);
+
+            // Create session and store
+            Session session = Session.getInstance(props);
+            store = session.getStore("imaps");
+
+            // Connect using appropriate authentication method
+            store.connect(email, credential);
+
+            // Access inbox in READ_WRITE mode (required for deletion)
+            inbox = store.getFolder("INBOX");
+            inbox.open(Folder.READ_WRITE);
+
+            // Mark all messages for deletion
+            Message[] messages = inbox.getMessages();
+            int count = messages.length;
+
+            if (count == 0) {
+                return 0; // No messages to delete
+            }
+
+            for (Message message : messages) {
+                message.setFlag(Flags.Flag.DELETED, true);
+            }
+
+            return count;
+        }
+        catch (Exception e) {
+            String authType = isOAuth ? "OAuth" : "Basic";
+            LogUtil.error("Error deleting all messages via IMAP " + authType + " for " + email);
+            ThrowableUtil.println(e);
+            throw e;
+        }
+        finally {
+            closeDeleteConnection(inbox, store);
         }
     }
 }
